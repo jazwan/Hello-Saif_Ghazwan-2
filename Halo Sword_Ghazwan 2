@@ -1,5 +1,5 @@
 -- ============================================
--- Super Sword Reach + Counter UI + RGB Effects + Notifications
+-- Super Sword Reach + Counter UI + Auto-Respawn Fix
 -- Developer: Ghazwan
 -- ============================================
 local Players = game:GetService("Players")
@@ -8,7 +8,6 @@ local RunService = game:GetService("RunService")
 local CoreGui = game:GetService("CoreGui")
 local TweenService = game:GetService("TweenService")
 
--- المتغير الأساسي للمدى (يبدأ من 18)
 local attackRange = 18 
 local MAX_RANGE = 50
 local MIN_RANGE = 1
@@ -90,7 +89,6 @@ local plusCorner = Instance.new("UICorner")
 plusCorner.CornerRadius = UDim.new(0, 6)
 plusCorner.Parent = plusButton
 
--- وظيفة لتحديث النص في الواجهة والتأثير البصري
 local function updateDisplay()
 	counterLabel.Text = tostring(attackRange)
 end
@@ -185,7 +183,7 @@ task.delay(15, function()
 end)
 
 -- ============================================
--- 3. دالة السيف والهيد سيف ومؤشر الـ RGB
+-- 3. دالة السيف والهيد سيف مع حماية الموت والـ Respawn
 -- ============================================
 local function getSwordPart(sword)
     if not sword then return nil end
@@ -194,6 +192,11 @@ end
 
 local activeIndicator = nil
 local hueCounter = 0
+
+-- إعادة تعيين المؤشر عند موت اللاعب لتجنب الأخطاء
+LocalPlayer.CharacterAdded:Connect(function(newCharacter)
+    activeIndicator = nil
+end)
 
 RunService.RenderStepped:Connect(function()
     if not _G.SuperSwordReach then 
@@ -206,22 +209,31 @@ RunService.RenderStepped:Connect(function()
     
     local sword = character:FindFirstChildOfClass("Tool")
     local myRoot = character:FindFirstChild("HumanoidRootPart")
+    local myHumanoid = character:FindFirstChildOfClass("Humanoid")
+    
+    -- التأكد أن اللاعب حياً ولم يمت
+    if not myHumanoid or myHumanoid.Health <= 0 then
+        if activeIndicator then activeIndicator:Destroy() activeIndicator = nil end
+        return
+    end
     
     if sword and myRoot then
         local swordPart = getSwordPart(sword)
         if swordPart then
-            -- تفعيل دائرة التحديد الملونة (RGB) حول السيف
             if not activeIndicator or activeIndicator.Parent ~= swordPart then
                 if activeIndicator then activeIndicator:Destroy() end
-                activeIndicator = Instance.new("SelectionBox")
-                activeIndicator.Adornee = swordPart
-                activeIndicator.Parent = swordPart
+                pcall(function()
+                    activeIndicator = Instance.new("SelectionBox")
+                    activeIndicator.Adornee = swordPart
+                    activeIndicator.Parent = swordPart
+                end)
             end
             
-            hueCounter = hueCounter + 0.015
-            activeIndicator.Color3 = Color3.fromHSV(hueCounter % 1, 1, 1)
+            if activeIndicator then
+                hueCounter = hueCounter + 0.015
+                activeIndicator.Color3 = Color3.fromHSV(hueCounter % 1, 1, 1)
+            end
             
-            -- فحص اللاعبين وتطبيق المدى المتغير من العداد
             for _, player in ipairs(Players:GetPlayers()) do
                 if player ~= LocalPlayer and player.Character then
                     local enemyCharacter = player.Character
@@ -238,7 +250,7 @@ RunService.RenderStepped:Connect(function()
                             pcall(function()
                                 firetouchinterest(swordPart, enemyRoot, 0)
                                 firetouchinterest(swordPart, enemyRoot, 1)
-                            end)
+                            end, 0.01)
                             
                             myRoot.CFrame = originalCFrame
                         end
