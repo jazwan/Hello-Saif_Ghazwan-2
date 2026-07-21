@@ -1,5 +1,6 @@
 -- ============================================
--- Super Sword Reach with UI Counter (Clean & Working)
+-- Super Sword Reach + Counter UI + RGB Effects + Notifications
+-- Developer: Ghazwan
 -- ============================================
 local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
@@ -7,7 +8,7 @@ local RunService = game:GetService("RunService")
 local CoreGui = game:GetService("CoreGui")
 local TweenService = game:GetService("TweenService")
 
--- المتغير الأساسي للمدى (يبدأ من 18 وتقدر تتحكم فيه بالعداد)
+-- المتغير الأساسي للمدى (يبدأ من 18)
 local attackRange = 18 
 local MAX_RANGE = 50
 local MIN_RANGE = 1
@@ -89,16 +90,18 @@ local plusCorner = Instance.new("UICorner")
 plusCorner.CornerRadius = UDim.new(0, 6)
 plusCorner.Parent = plusButton
 
--- وظيفة لتحديث النص في الواجهة
+-- وظيفة لتحديث النص في الواجهة والتأثير البصري
 local function updateDisplay()
 	counterLabel.Text = tostring(attackRange)
 end
 
--- أزرار التحكم بالمدى
 minusButton.MouseButton1Click:Connect(function()
 	if attackRange > MIN_RANGE then
 		attackRange = attackRange - 1
 		updateDisplay()
+		TweenService:Create(minusButton, TweenInfo.new(0.1), {BackgroundColor3 = Color3.fromRGB(140, 20, 20)}):Play()
+		task.wait(0.1)
+		TweenService:Create(minusButton, TweenInfo.new(0.1), {BackgroundColor3 = Color3.fromRGB(180, 40, 40)}):Play()
 	end
 end)
 
@@ -106,19 +109,97 @@ plusButton.MouseButton1Click:Connect(function()
 	if attackRange < MAX_RANGE then
 		attackRange = attackRange + 1
 		updateDisplay()
+		TweenService:Create(plusButton, TweenInfo.new(0.1), {BackgroundColor3 = Color3.fromRGB(20, 160, 60)}):Play()
+		task.wait(0.1)
+		TweenService:Create(plusButton, TweenInfo.new(0.1), {BackgroundColor3 = Color3.fromRGB(40, 180, 80)}):Play()
 	end
 end)
 
 -- ============================================
--- 2. كود الهيد سيف الأساسي والفعال
+-- 2. نظام الإشعارات والنصوص المتحركة (RGB)
+-- ============================================
+local NotifyGui = Instance.new("ScreenGui", CoreGui)
+local function ShowNotification(text)
+    local Frame = Instance.new("Frame", NotifyGui)
+    Frame.Size = UDim2.new(0, 250, 0, 45)
+    Frame.Position = UDim2.new(1, 0, 1, -100)
+    Frame.BackgroundColor3 = Color3.fromRGB(15, 15, 15)
+    Frame.BorderSizePixel = 0
+    Instance.new("UICorner", Frame).CornerRadius = UDim.new(0, 8)
+    
+    local Stroke = Instance.new("UIStroke", Frame)
+    Stroke.Thickness = 2
+    
+    local Label = Instance.new("TextLabel", Frame)
+    Label.Size = UDim2.new(1, -10, 1, 0)
+    Label.Position = UDim2.new(0, 5, 0, 0)
+    Label.BackgroundTransparency = 1
+    Label.Text = text
+    Label.TextColor3 = Color3.new(1, 1, 1)
+    Label.Font = Enum.Font.GothamBold
+    Label.TextSize = 13
+    Label.TextWrapped = true
+    
+    local counter = 0
+    local conn = RunService.RenderStepped:Connect(function()
+        counter = counter + 0.01
+        Stroke.Color = Color3.fromHSV(counter % 1, 1, 1)
+        Label.TextColor3 = Color3.fromHSV(counter % 1, 1, 1)
+    end)
+    
+    Frame:TweenPosition(UDim2.new(1, -260, 1, -100), "Out", "Quart", 0.5, true)
+    
+    task.delay(4, function()
+        Frame:TweenPosition(UDim2.new(1, 0, 1, -100), "In", "Quart", 0.5, true, function()
+            conn:Disconnect()
+            Frame:Destroy()
+        end)
+    end)
+end
+
+ShowNotification("The script was successfully uploaded. Developer: Ghazwan")
+
+-- نص الخطاب أعلى منتصف الشاشة لمدة 15 ثانية
+local TopGui = Instance.new("ScreenGui", CoreGui)
+local TopLabel = Instance.new("TextLabel", TopGui)
+TopLabel.Size = UDim2.new(0, 450, 0, 40)
+TopLabel.Position = UDim2.new(0.5, -225, 0, 15)
+TopLabel.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+TopLabel.BackgroundTransparency = 0
+TopLabel.BorderSizePixel = 0
+TopLabel.Text = "[Please support the developer Ghazzwan to continue. TikTok: ولي عهد بريطانا]\n[Note: The script will not work if your sword has turned yellow.]"
+TopLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+TopLabel.Font = Enum.Font.GothamBold
+TopLabel.TextSize = 12
+TopLabel.TextWrapped = true
+
+local topCounter = 0
+local topConn = RunService.RenderStepped:Connect(function()
+    topCounter = topCounter + 0.01
+    TopLabel.TextColor3 = Color3.fromHSV(topCounter % 1, 1, 1)
+end)
+
+task.delay(15, function()
+    topConn:Disconnect()
+    TopGui:Destroy()
+end)
+
+-- ============================================
+-- 3. دالة السيف والهيد سيف ومؤشر الـ RGB
 -- ============================================
 local function getSwordPart(sword)
     if not sword then return nil end
     return sword:FindFirstChild("Handle") or sword:FindFirstChild("Blade") or sword:FindFirstChildOfClass("Part") or sword:FindFirstChildOfClass("MeshPart")
 end
 
+local activeIndicator = nil
+local hueCounter = 0
+
 RunService.RenderStepped:Connect(function()
-    if not _G.SuperSwordReach then return end
+    if not _G.SuperSwordReach then 
+        if activeIndicator then activeIndicator:Destroy() activeIndicator = nil end
+        return 
+    end
     
     local character = LocalPlayer.Character
     if not character then return end
@@ -129,6 +210,18 @@ RunService.RenderStepped:Connect(function()
     if sword and myRoot then
         local swordPart = getSwordPart(sword)
         if swordPart then
+            -- تفعيل دائرة التحديد الملونة (RGB) حول السيف
+            if not activeIndicator or activeIndicator.Parent ~= swordPart then
+                if activeIndicator then activeIndicator:Destroy() end
+                activeIndicator = Instance.new("SelectionBox")
+                activeIndicator.Adornee = swordPart
+                activeIndicator.Parent = swordPart
+            end
+            
+            hueCounter = hueCounter + 0.015
+            activeIndicator.Color3 = Color3.fromHSV(hueCounter % 1, 1, 1)
+            
+            -- فحص اللاعبين وتطبيق المدى المتغير من العداد
             for _, player in ipairs(Players:GetPlayers()) do
                 if player ~= LocalPlayer and player.Character then
                     local enemyCharacter = player.Character
@@ -138,7 +231,6 @@ RunService.RenderStepped:Connect(function()
                     if enemyRoot and enemyHumanoid and enemyHumanoid.Health > 0 then
                         local distance = (myRoot.Position - enemyRoot.Position).Magnitude
                         
-                        -- استخدام الـ attackRange المتغير بناءً على العداد
                         if distance <= attackRange then
                             local originalCFrame = myRoot.CFrame 
                             myRoot.CFrame = enemyRoot.CFrame * CFrame.new(0, 0, 2) 
@@ -153,6 +245,10 @@ RunService.RenderStepped:Connect(function()
                     end
                 end
             end
+        else
+            if activeIndicator then activeIndicator:Destroy() activeIndicator = nil end
         end
+    else
+        if activeIndicator then activeIndicator:Destroy() activeIndicator = nil end
     end
 end)
