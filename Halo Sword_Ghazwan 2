@@ -1,0 +1,158 @@
+-- ============================================
+-- Super Sword Reach with UI Counter (Clean & Working)
+-- ============================================
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
+local RunService = game:GetService("RunService")
+local CoreGui = game:GetService("CoreGui")
+local TweenService = game:GetService("TweenService")
+
+-- المتغير الأساسي للمدى (يبدأ من 18 وتقدر تتحكم فيه بالعداد)
+local attackRange = 18 
+local MAX_RANGE = 50
+local MIN_RANGE = 1
+
+_G.SuperSwordReach = true
+
+-- ============================================
+-- 1. بناء واجهة العداد (UI)
+-- ============================================
+local screenGui = Instance.new("ScreenGui")
+screenGui.Name = "ReachCounterGui"
+screenGui.ResetOnSpawn = false
+screenGui.IgnoreGuiInset = true
+screenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+screenGui.Parent = CoreGui
+
+local mainFrame = Instance.new("Frame")
+mainFrame.Name = "MainFrame"
+mainFrame.Size = UDim2.new(0, 180, 0, 60)
+mainFrame.Position = UDim2.new(0, 20, 0.5, -30)
+mainFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 25)
+mainFrame.BorderSizePixel = 0
+mainFrame.Active = true
+mainFrame.Draggable = true
+mainFrame.Parent = screenGui
+
+local corner = Instance.new("UICorner")
+corner.CornerRadius = UDim.new(0, 8)
+corner.Parent = mainFrame
+
+-- زر النقصان (-)
+local minusButton = Instance.new("TextButton")
+minusButton.Name = "MinusButton"
+minusButton.Size = UDim2.new(0, 40, 0, 40)
+minusButton.Position = UDim2.new(0, 8, 0.5, -20)
+minusButton.BackgroundColor3 = Color3.fromRGB(180, 40, 40)
+minusButton.BorderSizePixel = 0
+minusButton.Text = "-"
+minusButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+minusButton.TextScaled = true
+minusButton.Font = Enum.Font.GothamBold
+minusButton.Parent = mainFrame
+
+local minusCorner = Instance.new("UICorner")
+minusCorner.CornerRadius = UDim.new(0, 6)
+minusCorner.Parent = minusButton
+
+-- عرض العدد
+local counterLabel = Instance.new("TextLabel")
+counterLabel.Name = "CounterLabel"
+counterLabel.Size = UDim2.new(0, 70, 0, 40)
+counterLabel.Position = UDim2.new(0, 56, 0.5, -20)
+counterLabel.BackgroundColor3 = Color3.fromRGB(35, 35, 40)
+counterLabel.BorderSizePixel = 0
+counterLabel.Text = tostring(attackRange)
+counterLabel.TextColor3 = Color3.fromRGB(0, 255, 150)
+counterLabel.TextScaled = true
+counterLabel.Font = Enum.Font.GothamBold
+counterLabel.Parent = mainFrame
+
+local labelCorner = Instance.new("UICorner")
+labelCorner.CornerRadius = UDim.new(0, 6)
+labelCorner.Parent = counterLabel
+
+-- زر الزيادة (+)
+local plusButton = Instance.new("TextButton")
+plusButton.Name = "PlusButton"
+plusButton.Size = UDim2.new(0, 40, 0, 40)
+plusButton.Position = UDim2.new(1, -48, 0.5, -20)
+plusButton.BackgroundColor3 = Color3.fromRGB(40, 180, 80)
+plusButton.BorderSizePixel = 0
+plusButton.Text = "+"
+plusButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+plusButton.TextScaled = true
+plusButton.Font = Enum.Font.GothamBold
+plusButton.Parent = mainFrame
+
+local plusCorner = Instance.new("UICorner")
+plusCorner.CornerRadius = UDim.new(0, 6)
+plusCorner.Parent = plusButton
+
+-- وظيفة لتحديث النص في الواجهة
+local function updateDisplay()
+	counterLabel.Text = tostring(attackRange)
+end
+
+-- أزرار التحكم بالمدى
+minusButton.MouseButton1Click:Connect(function()
+	if attackRange > MIN_RANGE then
+		attackRange = attackRange - 1
+		updateDisplay()
+	end
+end)
+
+plusButton.MouseButton1Click:Connect(function()
+	if attackRange < MAX_RANGE then
+		attackRange = attackRange + 1
+		updateDisplay()
+	end
+end)
+
+-- ============================================
+-- 2. كود الهيد سيف الأساسي والفعال
+-- ============================================
+local function getSwordPart(sword)
+    if not sword then return nil end
+    return sword:FindFirstChild("Handle") or sword:FindFirstChild("Blade") or sword:FindFirstChildOfClass("Part") or sword:FindFirstChildOfClass("MeshPart")
+end
+
+RunService.RenderStepped:Connect(function()
+    if not _G.SuperSwordReach then return end
+    
+    local character = LocalPlayer.Character
+    if not character then return end
+    
+    local sword = character:FindFirstChildOfClass("Tool")
+    local myRoot = character:FindFirstChild("HumanoidRootPart")
+    
+    if sword and myRoot then
+        local swordPart = getSwordPart(sword)
+        if swordPart then
+            for _, player in ipairs(Players:GetPlayers()) do
+                if player ~= LocalPlayer and player.Character then
+                    local enemyCharacter = player.Character
+                    local enemyRoot = enemyCharacter:FindFirstChild("HumanoidRootPart")
+                    local enemyHumanoid = enemyCharacter:FindFirstChildOfClass("Humanoid")
+                    
+                    if enemyRoot and enemyHumanoid and enemyHumanoid.Health > 0 then
+                        local distance = (myRoot.Position - enemyRoot.Position).Magnitude
+                        
+                        -- استخدام الـ attackRange المتغير بناءً على العداد
+                        if distance <= attackRange then
+                            local originalCFrame = myRoot.CFrame 
+                            myRoot.CFrame = enemyRoot.CFrame * CFrame.new(0, 0, 2) 
+                            
+                            pcall(function()
+                                firetouchinterest(swordPart, enemyRoot, 0)
+                                firetouchinterest(swordPart, enemyRoot, 1)
+                            end)
+                            
+                            myRoot.CFrame = originalCFrame
+                        end
+                    end
+                end
+            end
+        end
+    end
+end)
